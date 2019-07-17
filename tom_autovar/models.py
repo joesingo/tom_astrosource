@@ -23,6 +23,21 @@ class AutovarLogBuffer(StringIO):
 
 class AutovarProcess(PipelineProcess):
     short_name = 'autovar'
+    flags = {
+        'calib': {
+            'default': False,
+            'long_name': 'Perform calibrated photometry to obtain absolute magnitudes'
+        },
+        'eebls': {
+            'default': False,
+            'long_name': 'EEBLS - box fitting to search for periodic transits'
+        },
+        'detrend': {
+            'default': False,
+            'long_name': 'Detrend exoplanet data'
+        },
+    }
+
     # Directories to find output files in after autovar has been run
     output_dirs = ('outputcats', 'outputplots')
 
@@ -37,7 +52,7 @@ class AutovarProcess(PipelineProcess):
             dest = tmpdir / Path(prod.data.path).name  # Use basename of original file
             dest.write_bytes(prod.data.read())
 
-    def do_pipeline(self, tmpdir):
+    def do_pipeline(self, tmpdir, **flags):
         """
         Call autovar to perform the actual analysis
         """
@@ -49,7 +64,7 @@ class AutovarProcess(PipelineProcess):
         logger.addHandler(logging.StreamHandler(buf))
 
         targets = np.array([self.target.ra, self.target.dec, 0, 0])
-        filetype = 'fz'  # TODO: determine this from the input files
+        filetype = 'psx'  # TODO: determine this from the input files
 
         try:
             with self.update_status('Setting up folders'):
@@ -64,8 +79,19 @@ class AutovarProcess(PipelineProcess):
                 autovar.calculate_curves(targets, parentPath=tmpdir)
             with self.update_status('Performing photometric calculations'):
                 autovar.photometric_calculations(targets, paths=paths)
-            with self.update_status('Making plots'):
-                autovar.make_plots(filterCode=filtercode, paths=paths)
+            if not flags['detrend']:
+                with self.update_status('Making plots'):
+                    autovar.make_plots(filterCode=filtercode, paths=paths)
+            if flags['detrend']:
+                with self.update_status('Detrending'):
+                    autovar.detrend_data(paths, filterCode=filtercode)
+            if flags['eebls']:
+                with self.update_status('Doing EEBLS'):
+                    autovar.plot_bls(paths=paths)
+            if flags['calib']:
+                with self.update_status('Making calibrated plots'):
+                    autovar.calibrated_plots(filterCode=filtercode, paths=paths)
+
         except autovar.AutovarException as ex:
             raise AsyncError(str(ex))
 
