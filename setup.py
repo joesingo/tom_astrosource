@@ -6,15 +6,15 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='tom_autovar',
+    name='tom_astrosource',
     version='0.0.1',
-    description='Autovar pipeline for tom_education',
+    description='Astrosource pipeline for tom_education',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Joe Singleton',
     author_email='joesingo@gmail.com',
     install_requires=[
-        'autovar @ git+https://github.com/zemogle/autovar@1bece12bc190694da7e7509cc3d303230b0a6cd0',
+        'astrosource @ git+https://github.com/zemogle/astrosource@d02a9ae274cd88ca119f912433f078e19173abb5',
     ],
     packages=find_packages(),
     include_package_data=True,

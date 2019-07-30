@@ -2,14 +2,14 @@ from io import StringIO
 import logging
 from pathlib import Path
 
-import autovar
+import astrosource
 import numpy as np
 from tom_education.models import AsyncError, PipelineProcess
 
 
-class AutovarLogBuffer(StringIO):
+class AstrosourceLogBuffer(StringIO):
     """
-    Thin wrapper around StringIO that logs messages against a `AutovarProcess`
+    Thin wrapper around StringIO that logs messages against a `AstrosourceProcess`
     on write
     """
     def __init__(self, process, *args, **kwargs):
@@ -21,8 +21,8 @@ class AutovarLogBuffer(StringIO):
         return super().write(s)
 
 
-class AutovarProcess(PipelineProcess):
-    short_name = 'autovar'
+class AstrosourceProcess(PipelineProcess):
+    short_name = 'astrosource'
     flags = {
         'calib': {
             'default': False,
@@ -38,7 +38,7 @@ class AutovarProcess(PipelineProcess):
         },
     }
 
-    # Directories to find output files in after autovar has been run
+    # Directories to find output files in after astrosource has been run
     output_dirs = ('outputcats', 'outputplots')
 
     class Meta:
@@ -54,12 +54,12 @@ class AutovarProcess(PipelineProcess):
 
     def do_pipeline(self, tmpdir, **flags):
         """
-        Call autovar to perform the actual analysis
+        Call astrosource to perform the actual analysis
         """
         self.copy_input_files(tmpdir)
 
-        buf = AutovarLogBuffer(self)
-        logger = logging.getLogger('autovar')
+        buf = AstrosourceLogBuffer(self)
+        logger = logging.getLogger('astrosource')
         logger.setLevel(logging.INFO)
         logger.addHandler(logging.StreamHandler(buf))
 
@@ -68,38 +68,38 @@ class AutovarProcess(PipelineProcess):
 
         try:
             with self.update_status('Setting up folders'):
-                paths = autovar.folder_setup(tmpdir)
+                paths = astrosource.folder_setup(tmpdir)
             with self.update_status('Gathering files'):
-                filelist, filtercode = autovar.gather_files(paths, filetype=filetype)
+                filelist, filtercode = astrosource.gather_files(paths, filetype=filetype)
             with self.update_status('Finding stars'):
-                autovar.find_stars(targets, paths, filelist)
+                astrosource.find_stars(targets, paths, filelist)
             with self.update_status('Finding comparisons'):
-                autovar.find_comparisons(tmpdir)
+                astrosource.find_comparisons(tmpdir)
             with self.update_status('Calculating curves'):
-                autovar.calculate_curves(targets, parentPath=tmpdir)
+                astrosource.calculate_curves(targets, parentPath=tmpdir)
             with self.update_status('Performing photometric calculations'):
-                autovar.photometric_calculations(targets, paths=paths)
+                astrosource.photometric_calculations(targets, paths=paths)
             if not flags['detrend']:
                 with self.update_status('Making plots'):
-                    autovar.make_plots(filterCode=filtercode, paths=paths)
+                    astrosource.make_plots(filterCode=filtercode, paths=paths)
             if flags['detrend']:
                 with self.update_status('Detrending'):
-                    autovar.detrend_data(paths, filterCode=filtercode)
+                    astrosource.detrend_data(paths, filterCode=filtercode)
             if flags['eebls']:
                 with self.update_status('Doing EEBLS'):
-                    autovar.plot_bls(paths=paths)
+                    astrosource.plot_bls(paths=paths)
             if flags['calib']:
                 with self.update_status('Making calibrated plots'):
-                    autovar.calibrated_plots(filterCode=filtercode, paths=paths)
+                    astrosource.calibrated_plots(filterCode=filtercode, paths=paths)
 
-        except autovar.AutovarException as ex:
+        except astrosource.AstrosourceException as ex:
             raise AsyncError(str(ex))
 
         yield from self.gather_outputs(tmpdir)
 
     def gather_outputs(self, tmpdir):
         """
-        Yield Path objects for autovar output files
+        Yield Path objects for astrosource output files
         """
         for outdir_name in self.output_dirs:
             outdir = tmpdir / Path(outdir_name)

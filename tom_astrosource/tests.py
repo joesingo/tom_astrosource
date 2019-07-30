@@ -11,10 +11,10 @@ from guardian.shortcuts import assign_perm
 from tom_dataproducts.models import DataProduct
 from tom_targets.models import Target
 
-from tom_autovar.models import AutovarProcess, AutovarLogBuffer
+from tom_astrosource.models import AstrosourceProcess, AstrosourceLogBuffer
 
 
-class AutovarProcessTestCase(TestCase):
+class AstrosourceProcessTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -33,7 +33,7 @@ class AutovarProcessTestCase(TestCase):
         assign_perm('tom_targets.view_target', self.user, self.target)
 
     def test_copy_input_files(self):
-        proc = AutovarProcess.objects.create(identifier='someprocess', target=self.target)
+        proc = AstrosourceProcess.objects.create(identifier='someprocess', target=self.target)
         proc.input_files.add(*self.prods)
         proc.save()
 
@@ -45,9 +45,9 @@ class AutovarProcessTestCase(TestCase):
             'test_0_file', 'test_1_file', 'test_2_file', 'test_3_file'
         })
 
-    @patch('tom_autovar.models.AutovarProcess.output_dirs', ['one', 'two', 'nonexistant'])
+    @patch('tom_astrosource.models.AstrosourceProcess.output_dirs', ['one', 'two', 'nonexistant'])
     def test_gather_outputs(self):
-        proc = AutovarProcess.objects.create(identifier='someprocess', target=self.target)
+        proc = AstrosourceProcess.objects.create(identifier='someprocess', target=self.target)
         proc.input_files.add(*self.prods)
         proc.save()
 
@@ -76,11 +76,11 @@ class AutovarProcessTestCase(TestCase):
         self.assertEqual(outputs, {file1, file2, file3})
 
     def test_log_buffer(self):
-        proc = AutovarProcess.objects.create(identifier='someprocess', target=self.target)
+        proc = AstrosourceProcess.objects.create(identifier='someprocess', target=self.target)
         proc.input_files.add(*self.prods)
         proc.save()
 
-        buf = AutovarLogBuffer(proc)
+        buf = AstrosourceLogBuffer(proc)
         buf.write('hello there')
         self.assertEqual(proc.logs, 'hello there')
         buf.write('. how are you?')

@@ -1,8 +1,8 @@
-# tom_autovar
+# tom_astrosource
 
-This package allows [autovar](https://github.com/zemogle/autovar/) to be run on
-data files in the [TOM Toolkit](https://tomtoolkit.github.io/) via the
-[tom_education](https://github.com/joesingo/tom_education) app.
+This package allows [astrosource](https://github.com/zemogle/astrosource/) to
+be run on data files in the [TOM Toolkit](https://tomtoolkit.github.io/) via
+the [tom_education](https://github.com/joesingo/tom_education) app.
 
 ## Installation
 
@@ -14,25 +14,25 @@ data files in the [TOM Toolkit](https://tomtoolkit.github.io/) via the
 
 ```
 git clone <this repo>
-pip install tom_autovar
+pip install tom_astrosource
 ```
 
-3. Add `tom_autovar` to `INSTALLED_APPS` in `settings.py`.
+3. Add `tom_astrosource` to `INSTALLED_APPS` in `settings.py`.
 
 ```python
 INSTALLED_APPS = [
     ...
-    'tom_autovar'
+    'tom_astrosource'
 ]
 ```
 
-4. Add the `autovar` pipeline to `TOM_EDUCATION_PIPELINES` (create this setting
-if it does not exist):
+4. Add the `astrosource` pipeline to `TOM_EDUCATION_PIPELINES` (create this
+setting if it does not exist):
 
 ```python
 TOM_EDUCATION_PIPELINES = {
     ...
-    'autovar': 'tom_autovar.models.AutovarProcess'
+    'astrosource': 'tom_astrosource.models.AstrosourceProcess'
 }
 ```
 
