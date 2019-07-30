@@ -14,7 +14,7 @@ setup(
     author='Joe Singleton',
     author_email='joesingo@gmail.com',
     install_requires=[
-        'astrosource @ git+https://github.com/zemogle/astrosource@d02a9ae274cd88ca119f912433f078e19173abb5',
+        'astrosource==1.0.0',
     ],
     packages=find_packages(),
     include_package_data=True,
