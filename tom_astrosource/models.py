@@ -23,6 +23,7 @@ class AstrosourceLogBuffer(StringIO):
 
 class AstrosourceProcess(PipelineProcess):
     short_name = 'astrosource'
+    allowed_suffixes = ['.fz', '.fits.fz', '.psx']
     flags = {
         'calib': {
             'default': False,
@@ -64,7 +65,10 @@ class AstrosourceProcess(PipelineProcess):
         logger.addHandler(logging.StreamHandler(buf))
 
         targets = np.array([self.target.ra, self.target.dec, 0, 0])
-        filetype = 'psx'  # TODO: determine this from the input files
+
+        # Get file type from the first input file (this assumes that all input
+        # files are the same type!)
+        filetype = Path(self.input_files.first().data.path).suffix[1:]  # remove the leading '.'
 
         try:
             with self.update_status('Setting up folders'):
