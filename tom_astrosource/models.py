@@ -4,7 +4,8 @@ from pathlib import Path
 
 import astrosource
 import numpy as np
-from tom_education.models import AsyncError, PipelineProcess
+from tom_dataproducts.models import DataProduct, ReducedDatum, PHOTOMETRY
+from tom_education.models import AsyncError, PipelineProcess, PipelineOutput
 
 
 class AstrosourceLogBuffer(StringIO):
@@ -38,9 +39,6 @@ class AstrosourceProcess(PipelineProcess):
             'long_name': 'Detrend exoplanet data'
         },
     }
-
-    # Directories to find output files in after astrosource has been run
-    output_dirs = ('outputcats', 'outputplots')
 
     class Meta:
         proxy = True
@@ -103,13 +101,27 @@ class AstrosourceProcess(PipelineProcess):
 
     def gather_outputs(self, tmpdir):
         """
-        Yield Path objects for astrosource output files
+        Yield PipelineOutput objects for astrosource output files
         """
-        for outdir_name in self.output_dirs:
-            outdir = tmpdir / Path(outdir_name)
+        outfiles = [
+            # (dirname, filename format string, output type, modes)
+            ('outputplots', 'V1_EnsembleVar{}Mag.png', DataProduct, ['Calib', 'Diff']),
+            ('outputcats', 'V1_{}Excel.csv', ReducedDatum, ['calib', 'diff']),
+        ]
+
+        for dirname, filename, output_type, modes in outfiles:
+            outdir = tmpdir / Path(dirname)
             if not outdir.is_dir():
+                self.log(f"Output directory '{dirname}' not found")
                 continue
-            for path in outdir.iterdir():
-                if not path.is_file():
-                    continue
-                yield path
+
+            found_file = False
+            for mode in modes:
+                p = outdir / filename.format(mode)
+                if p.is_file():
+                    yield PipelineOutput(path=p, output_type=output_type, tag=PHOTOMETRY[0])
+                    found_file = True
+                    break
+            if not found_file:
+                glob = filename.format('(' + " | ".join(modes) + ')')
+                self.log(f"No files matching '{glob}' found in '{dirname}'")

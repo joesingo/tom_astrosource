@@ -8,7 +8,8 @@ import tempfile
 from django.test import TestCase
 from django.contrib.auth.models import User
 from guardian.shortcuts import assign_perm
-from tom_dataproducts.models import DataProduct
+from tom_education.models import PipelineOutput
+from tom_dataproducts.models import DataProduct, ReducedDatum
 from tom_targets.models import Target
 
 from tom_astrosource.models import AstrosourceProcess, AstrosourceLogBuffer
@@ -45,7 +46,6 @@ class AstrosourceProcessTestCase(TestCase):
             'test_0_file', 'test_1_file', 'test_2_file', 'test_3_file'
         })
 
-    @patch('tom_astrosource.models.AstrosourceProcess.output_dirs', ['one', 'two', 'nonexistant'])
     def test_gather_outputs(self):
         proc = AstrosourceProcess.objects.create(identifier='someprocess', target=self.target)
         proc.input_files.add(*self.prods)
@@ -53,27 +53,48 @@ class AstrosourceProcessTestCase(TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir_name:
             tmpdir = Path(tmpdir_name)
-            one = tmpdir / 'one'
-            one_subdir = one / 'subdir'
-            two = tmpdir / 'two'
-            three = tmpdir / 'three'
-            one.mkdir()
-            one_subdir.mkdir()
-            two.mkdir()
-            three.mkdir()
+            plots = tmpdir / 'outputplots'
+            plots.mkdir()
+            cats = tmpdir / 'outputcats'
+            cats.mkdir()
 
-            file1 = one / 'file1.png'
-            file2 = one / 'file2.bmp'
-            file3 = two / 'file3.tar.gz'
-            file4 = three / 'file4.txt'
+            # Make both diff and calib files; calib should be preferred
+            calib_png = plots / 'V1_EnsembleVarCalibMag.png'
+            calib_png.write_bytes(b'calib data')
+            (plots / 'V1_EnsembleVarDiffMag.png').write_bytes(b'diff data')
 
-            file1.write_text('hello')
-            file2.write_text('hello')
-            file3.write_text('hello')
-            file4.write_text('hello')
+            # Make only diff file
+            diff_csv = cats / 'V1_diffExcel.csv'
+            diff_csv.write_text('comma separated')
+
+            # Extra files should be ignored without causing errors
+            (plots / 'suspicious_file.sh').write_text('sudo rm -rf /')
 
             outputs = set(proc.gather_outputs(tmpdir))
-        self.assertEqual(outputs, {file1, file2, file3})
+
+        self.assertEqual(outputs, {
+            PipelineOutput(path=calib_png, output_type=DataProduct, tag='photometry'),
+            PipelineOutput(path=diff_csv, output_type=ReducedDatum, tag='photometry')
+        })
+        self.assertIsNone(proc.logs)
+
+    def test_missing_outputs(self):
+        proc = AstrosourceProcess.objects.create(identifier='someprocess', target=self.target)
+        proc.input_files.add(*self.prods)
+        proc.save()
+
+        with tempfile.TemporaryDirectory() as tmpdir_name:
+            tmpdir = Path(tmpdir_name)
+            (tmpdir / 'outputplots').mkdir()
+            outputs = set(proc.gather_outputs(tmpdir))
+
+        self.assertEqual(outputs, set([]))
+        self.assertTrue(proc.logs)
+        log_lines = proc.logs.strip().split("\n")
+        self.assertEqual(log_lines, [
+            "No files matching 'V1_EnsembleVar(Calib | Diff)Mag.png' found in 'outputplots'",
+            "Output directory 'outputcats' not found"
+        ])
 
     def test_log_buffer(self):
         proc = AstrosourceProcess.objects.create(identifier='someprocess', target=self.target)
