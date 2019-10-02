@@ -1,5 +1,6 @@
 from io import StringIO
 import logging
+import os
 from pathlib import Path
 
 import astrosource
@@ -48,7 +49,7 @@ class AstrosourceProcess(PipelineProcess):
         Copy the input files to the given temporary directory
         """
         for prod in self.input_files.all():
-            dest = tmpdir / Path(prod.data.path).name  # Use basename of original file
+            dest = tmpdir / os.path.basename(prod.data.file.name)  # Use basename of original file
             dest.write_bytes(prod.data.read())
 
     def do_pipeline(self, tmpdir, **flags):
@@ -66,7 +67,7 @@ class AstrosourceProcess(PipelineProcess):
 
         # Get file type from the first input file (this assumes that all input
         # files are the same type!)
-        filetype = Path(self.input_files.first().data.path).suffix[1:]  # remove the leading '.'
+        filetype = Path(self.input_files.first().data.name).suffix[1:]  # remove the leading '.'
 
         try:
             with self.update_status('Setting up folders'):

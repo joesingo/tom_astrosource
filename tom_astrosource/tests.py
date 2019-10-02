@@ -20,7 +20,7 @@ class AstrosourceProcessTestCase(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         target_identifier = 't{}'.format(datetime.now().timestamp())
-        cls.target = Target.objects.create(identifier=target_identifier, name='my target')
+        cls.target = Target.objects.create(name=target_identifier)
         cls.prods = [DataProduct.objects.create(product_id=f'test_{i}', target=cls.target)
                      for i in range(4)]
         for prod in cls.prods:
