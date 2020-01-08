@@ -5,9 +5,10 @@ from pathlib import Path
 
 import astrosource
 import numpy as np
-from tom_dataproducts.models import DataProduct, ReducedDatum, PHOTOMETRY
+from tom_dataproducts.models import DataProduct, ReducedDatum
 from tom_education.models import AsyncError, PipelineProcess, PipelineOutput
 
+from django.conf import settings
 
 class AstrosourceLogBuffer(StringIO):
     """
@@ -120,7 +121,7 @@ class AstrosourceProcess(PipelineProcess):
             for mode in modes:
                 p = outdir / filename.format(mode)
                 if p.is_file():
-                    yield PipelineOutput(path=p, output_type=output_type, tag=PHOTOMETRY[0])
+                    yield PipelineOutput(path=p, output_type=output_type, data_product_type=settings.DATA_PRODUCT_TYPES['photometry'][0])
                     found_file = True
                     break
             if not found_file:

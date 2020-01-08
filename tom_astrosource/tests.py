@@ -73,8 +73,8 @@ class AstrosourceProcessTestCase(TestCase):
             outputs = set(proc.gather_outputs(tmpdir))
 
         self.assertEqual(outputs, {
-            PipelineOutput(path=calib_png, output_type=DataProduct, tag='photometry'),
-            PipelineOutput(path=diff_csv, output_type=ReducedDatum, tag='photometry')
+            PipelineOutput(path=calib_png, output_type=DataProduct, data_product_type='photometry'),
+            PipelineOutput(path=diff_csv, output_type=ReducedDatum, data_product_type='photometry')
         })
         self.assertIsNone(proc.logs)
 
