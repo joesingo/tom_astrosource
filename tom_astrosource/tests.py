@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 import tempfile
+import numpy as np
 
 from django.test import TestCase
 from django.contrib.auth.models import User
@@ -13,6 +14,7 @@ from tom_dataproducts.models import DataProduct, ReducedDatum
 from tom_targets.models import Target
 
 from tom_astrosource.models import AstrosourceProcess, AstrosourceLogBuffer
+from astrosource import TimeSeries
 
 
 class AstrosourceProcessTestCase(TestCase):
@@ -51,6 +53,7 @@ class AstrosourceProcessTestCase(TestCase):
         proc.input_files.add(*self.prods)
         proc.save()
 
+
         with tempfile.TemporaryDirectory() as tmpdir_name:
             tmpdir = Path(tmpdir_name)
             plots = tmpdir / 'outputplots'
@@ -58,6 +61,7 @@ class AstrosourceProcessTestCase(TestCase):
             cats = tmpdir / 'outputcats'
             cats.mkdir()
 
+            ts = TimeSeries(targets=np.array([0,0,0,0]), indir=tmpdir)
             # Make both diff and calib files; calib should be preferred
             calib_png = plots / 'V1_EnsembleVarCalibMag.png'
             calib_png.write_bytes(b'calib data')
@@ -70,7 +74,7 @@ class AstrosourceProcessTestCase(TestCase):
             # Extra files should be ignored without causing errors
             (plots / 'suspicious_file.sh').write_text('sudo rm -rf /')
 
-            outputs = set(proc.gather_outputs(tmpdir))
+            outputs = set(proc.gather_outputs(timeseries=ts, tmpdir=tmpdir))
 
         self.assertEqual(outputs, {
             PipelineOutput(path=calib_png, output_type=DataProduct, data_product_type='photometry'),
@@ -86,7 +90,8 @@ class AstrosourceProcessTestCase(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir_name:
             tmpdir = Path(tmpdir_name)
             (tmpdir / 'outputplots').mkdir()
-            outputs = set(proc.gather_outputs(tmpdir))
+            ts = TimeSeries(targets=np.array([0,0,0,0]), indir=tmpdir)
+            outputs = set(proc.gather_outputs(timeseries=ts, tmpdir=tmpdir))
 
         self.assertEqual(outputs, set([]))
         self.assertTrue(proc.logs)

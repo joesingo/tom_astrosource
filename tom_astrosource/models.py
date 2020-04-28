@@ -3,7 +3,10 @@ import logging
 import os
 from pathlib import Path
 
-import astrosource
+from astrosource import TimeSeries
+from astrosource.detrend import detrend_data
+from astrosource.eebls import plot_bls
+from astrosource.utils import AstrosourceException
 import numpy as np
 from tom_dataproducts.models import DataProduct, ReducedDatum
 from tom_education.models import AsyncError, PipelineProcess, PipelineOutput
@@ -28,9 +31,13 @@ class AstrosourceProcess(PipelineProcess):
     short_name = 'astrosource'
     allowed_suffixes = ['.fz', '.fits.fz', '.psx']
     flags = {
-        'calib': {
+        'plot': {
             'default': False,
-            'long_name': 'Perform calibrated photometry to obtain absolute magnitudes'
+            'long_name': 'Create plot files'
+        },
+        'period': {
+            'default': False,
+            'long_name': 'Perform automatic period finding'
         },
         'eebls': {
             'default': False,
@@ -49,19 +56,21 @@ class AstrosourceProcess(PipelineProcess):
         """
         Copy the input files to the given temporary directory
         """
-        for prod in self.input_files.all():
-            dest = tmpdir / os.path.basename(prod.data.file.name)  # Use basename of original file
-            dest.write_bytes(prod.data.read())
+        return [prod.data.file for prod in self.input_files.all()]
+        # for prod in self.input_files.all():
+        #     dest = tmpdir / os.path.basename(prod.data.file.name)  # Use basename of original file
+        #     dest.write_bytes(prod.data.read())
 
     def do_pipeline(self, tmpdir, **flags):
         """
         Call astrosource to perform the actual analysis
         """
-        self.copy_input_files(tmpdir)
+        with self.update_status('Gathering data files'):
+            filelist = self.copy_input_files(tmpdir)
 
         buf = AstrosourceLogBuffer(self)
         logger = logging.getLogger('astrosource')
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
         logger.addHandler(logging.StreamHandler(buf))
 
         targets = np.array([self.target.ra, self.target.dec, 0, 0])
@@ -71,44 +80,45 @@ class AstrosourceProcess(PipelineProcess):
         filetype = Path(self.input_files.first().data.name).suffix[1:]  # remove the leading '.'
 
         try:
-            with self.update_status('Setting up folders'):
-                paths = astrosource.folder_setup(tmpdir)
-            with self.update_status('Gathering files'):
-                filelist, filtercode = astrosource.gather_files(paths, filetype=filetype)
-            with self.update_status('Finding stars'):
-                astrosource.find_stars(targets, paths, filelist)
-            with self.update_status('Finding comparisons'):
-                astrosource.find_comparisons(tmpdir)
+            with self.update_status('Initialising'):
+                ts = TimeSeries(indir=tmpdir, filelist=filelist, targets=targets, verbose=True)
+            with self.update_status('Analysing input data files'):
+                ts.analyse(calib=True)
             with self.update_status('Calculating curves'):
-                astrosource.calculate_curves(targets, parentPath=tmpdir)
+                ts.find_stable()
             with self.update_status('Performing photometric calculations'):
-                astrosource.photometric_calculations(targets, paths=paths)
-            if not flags['detrend']:
-                with self.update_status('Making plots'):
-                    astrosource.make_plots(filterCode=filtercode, paths=paths)
+                ts.photometry()
+            if flags['plot']:
+                with self.update_status('Plotting results and finding period'):
+                    ts.plot(period=flags['period'], filesave=True)
             if flags['detrend']:
                 with self.update_status('Detrending'):
-                    astrosource.detrend_data(paths, filterCode=filtercode)
+                    detrend_data(ts.paths, filterCode=ts.filtercode)
             if flags['eebls']:
                 with self.update_status('Doing EEBLS'):
-                    astrosource.plot_bls(paths=paths)
-            if flags['calib']:
-                with self.update_status('Making calibrated plots'):
-                    astrosource.calibrated_plots(filterCode=filtercode, paths=paths)
+                    plot_bls(paths=ts.paths)
 
-        except astrosource.AstrosourceException as ex:
+        except AstrosourceException as ex:
             raise AsyncError(str(ex))
 
-        yield from self.gather_outputs(tmpdir)
+        yield from self.gather_outputs(ts, tmpdir)
 
-    def gather_outputs(self, tmpdir):
+    def gather_outputs(self, timeseries, tmpdir):
         """
         Yield PipelineOutput objects for astrosource output files
         """
+        timeseries.usedimages.sort()
+        filesused = [timeseries.files[i] for i in timeseries.usedimages]
+        photdata = [x for x in zip(timeseries.data[0][:,6],timeseries.data[0][:,10],timeseries.data[0][:,11],filesused)]
+
+        outputs = []
+        for pd in photdata:
+            yield PipelineOutput(path=None, data=pd, output_type=ReducedDatum, data_product_type=settings.DATA_PRODUCT_TYPES['photometry'][0])
+
         outfiles = [
             # (dirname, filename format string, output type, modes)
             ('outputplots', 'V1_EnsembleVar{}Mag.png', DataProduct, ['Calib', 'Diff']),
-            ('outputcats', 'V1_{}Excel.csv', ReducedDatum, ['calib', 'diff']),
+            ('periods', 'V1_StringTestPeriodPlot{}.png', DataProduct, ['_calibrated', '']),
         ]
 
         for dirname, filename, output_type, modes in outfiles:
@@ -121,7 +131,7 @@ class AstrosourceProcess(PipelineProcess):
             for mode in modes:
                 p = outdir / filename.format(mode)
                 if p.is_file():
-                    yield PipelineOutput(path=p, output_type=output_type, data_product_type=settings.DATA_PRODUCT_TYPES['photometry'][0])
+                    yield PipelineOutput(path=p, output_type=output_type, data_product_type=settings.DATA_PRODUCT_TYPES['photometry'][0], data=None)
                     found_file = True
                     break
             if not found_file:

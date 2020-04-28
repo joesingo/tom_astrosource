@@ -7,7 +7,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='tom_astrosource',
-    version='0.1.2',
+    version='0.1.3',
     description='Astrosource pipeline for tom_education',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -16,7 +16,7 @@ setup(
     maintainer='Edward Gomez',
     maintainer_email='egomez@lco.global',
     install_requires=[
-        'astrosource==1.1.1',
+        'astrosource>=1.3.0',
     ],
     packages=find_packages(),
     include_package_data=True,
