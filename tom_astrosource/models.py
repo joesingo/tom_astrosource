@@ -115,6 +115,7 @@ class AstrosourceProcess(PipelineProcess):
         for pd in photdata:
             yield PipelineOutput(path=None, data=pd, output_type=ReducedDatum, data_product_type=settings.DATA_PRODUCT_TYPES['photometry'][0])
 
+        # These data products are PLOTS
         outfiles = [
             # (dirname, filename format string, output type, modes)
             ('outputplots', 'V1_EnsembleVar{}Mag.png', DataProduct, ['Calib', 'Diff']),
@@ -131,7 +132,7 @@ class AstrosourceProcess(PipelineProcess):
             for mode in modes:
                 p = outdir / filename.format(mode)
                 if p.is_file():
-                    yield PipelineOutput(path=p, output_type=output_type, data_product_type=settings.DATA_PRODUCT_TYPES['photometry'][0], data=None)
+                    yield PipelineOutput(path=p, output_type=output_type, data_product_type=settings.DATA_PRODUCT_TYPES['plot'][0], data=None)
                     found_file = True
                     break
             if not found_file:
